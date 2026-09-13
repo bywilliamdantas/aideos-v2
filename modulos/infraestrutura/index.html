@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIDE OS">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="description" content="Preencha e gere relatórios de solicitação de infraestrutura prontos para copiar no WhatsApp.">
+<title>AIDE OS — Infraestrutura</title>
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png">
+<link rel="icon" href="../../icons/icon-192.png">
+<style>
+  :root{
+    --bg:#0a0b0d;
+    --card-top:#1b1e23;
+    --card-bottom:#101216;
+    --card-border:rgba(255,255,255,0.07);
+    --text-primary:#f3f4f6;
+    --text-muted:#7d838a;
+    --text-label:#a2a7ad;
+    --danger:#ff5c52;
+    --danger-soft:rgba(255,92,82,0.14);
+    --ok:#34d399;
+    --pending:#f2b134;
+    --pending-soft:rgba(242,177,52,0.14);
+    /* identidade do módulo Infraestrutura: azul sinal (rede/conectividade) */
+    --accent:#3aa3ff;
+    --accent-2:#7ec4ff;
+    --accent-soft:rgba(58,163,255,0.15);
+    --accent-ink:#04121f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;
+    background:var(--bg);
+    min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+    color:var(--text-primary);
+    display:flex;justify-content:center;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+  }
+  .screen{ width:100%; max-width:430px; padding:20px 18px 50px; }
+
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--text-muted); text-decoration:none;
+    font-size:12.5px; font-weight:700;
+    margin:0 4px 14px; -webkit-tap-highlight-color:transparent;
+  }
+  .back-link svg{ width:14px; height:14px; }
+  .back-link:active{ color:var(--accent); }
+
+  .top-row{ display:flex; align-items:center; justify-content:space-between; }
+  .module-tag{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border:1px solid rgba(58,163,255,0.32);
+    padding:5px 10px; border-radius:20px; margin:0 0 10px;
+  }
+  .module-tag::before{ content:""; width:6px;height:6px;border-radius:50%; background:var(--accent); }
+  .history-link{
+    display:inline-flex; align-items:center; gap:5px;
+    color:var(--text-muted); text-decoration:none;
+    font-size:12.5px; font-weight:700;
+    margin:0 4px 14px;
+  }
+  .history-link svg{ width:14px; height:14px; }
+  .history-link:active{ color:var(--accent); }
+
+  .page-title{ font-size:23px; font-weight:800; margin:2px 4px 4px; letter-spacing:-0.01em; }
+  .page-sub{ font-size:12.5px; color:var(--text-muted); margin:0 4px 20px; line-height:1.5; }
+
+  .sync-row{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; color:var(--text-muted);
+    padding:0 6px 10px; min-height:16px;
+  }
+  .sync-dot{ width:6px;height:6px;border-radius:50%; background:var(--text-muted); flex-shrink:0; }
+  .sync-dot.ok{background:var(--ok);}
+  .sync-dot.err{background:var(--danger);}
+  .sync-row.hidden{visibility:hidden;}
+
+  #app{ counter-reset:step; }
+  .card{
+    position:relative;
+    background:linear-gradient(165deg,var(--card-top),var(--card-bottom) 70%);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    padding:20px 20px 22px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+    margin-bottom:14px;
+  }
+  .card:not(.history-card):not(.result-card){ counter-increment:step; }
+  .section-title{
+    display:flex; align-items:center; gap:10px;
+    font-size:14px; font-weight:700;
+    color:var(--text-primary);
+    margin:0 0 16px;
+  }
+  .card:not(.history-card):not(.result-card) > .section-title:first-of-type::before{
+    content:counter(step);
+    flex-shrink:0; width:22px; height:22px; border-radius:7px;
+    background:var(--accent-soft); color:var(--accent);
+    font-size:11.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .history-card .section-title, .result-card .section-title{ color:var(--text-label); font-size:12.5px; }
+
+  .chip-grid{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    flex:1 1 calc(50% - 8px);
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.09);
+    color:var(--text-label);
+    font-size:12.5px; font-weight:700;
+    padding:13px 8px; border-radius:12px;
+    text-align:center; -webkit-appearance:none;
+    font-family:inherit; transition:border-color .12s ease, background .12s ease;
+  }
+  .chip.active{
+    background:var(--accent-soft);
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+  .chip:active{ transform:scale(0.97); }
+  .chip.full{ flex:1 1 100%; }
+
+  .field{ margin-bottom:14px; }
+  .field:last-child{ margin-bottom:0; }
+  .field label{
+    display:flex; align-items:center; font-size:11.5px; font-weight:600;
+    color:var(--text-label); margin-bottom:6px; letter-spacing:0.01em;
+  }
+  .field label .req{ color:var(--accent); margin-left:3px; font-weight:800; }
+  .field-unit{
+    font-size:10.5px; font-weight:700; color:var(--text-muted);
+    margin-left:auto; background:rgba(255,255,255,0.05);
+    padding:1px 7px; border-radius:8px;
+  }
+  .field input, .field textarea{
+    width:100%; background:rgba(255,255,255,0.045);
+    border:1.5px solid rgba(255,255,255,0.09);
+    color:var(--text-primary); border-radius:12px;
+    padding:12px 13px; font-size:14.5px;
+    -webkit-appearance:none; font-family:inherit;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .field select{
+    width:100%; background:rgba(255,255,255,0.045);
+    border:1.5px solid rgba(255,255,255,0.09);
+    color:var(--text-primary); border-radius:12px;
+    padding:12px 34px 12px 13px; font-size:14.5px;
+    font-family:inherit; -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237d838a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; background-size:16px;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none; border-color:var(--accent); background:rgba(255,255,255,0.06);
+  }
+  .field input.invalid, .field textarea.invalid{ border-color:var(--danger); background:var(--danger-soft); }
+  .field input::placeholder, .field textarea::placeholder{ color:#585d63; }
+  .field input[type="date"]{ color-scheme:dark; }
+  .row-2{ display:flex; gap:10px; }
+  .row-2 .field{ flex:1; }
+  .row-3{ display:flex; gap:10px; }
+  .row-3 .field{ flex:1; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:2px 2px 14px;
+  }
+  .toggle-label{ font-size:13px; font-weight:600; color:var(--text-primary); }
+  .toggle-sub{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .switch{
+    position:relative; width:46px; height:27px; flex-shrink:0; margin-left:12px;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch-track{
+    position:absolute; inset:0; background:rgba(255,255,255,0.14);
+    border-radius:20px; transition:background .15s ease;
+  }
+  .switch-track::before{
+    content:""; position:absolute; width:23px; height:23px; left:2px; top:2px;
+    background:#fff; border-radius:50%; transition:transform .15s ease;
+  }
+  .switch input:checked + .switch-track{ background:var(--accent); }
+  .switch input:checked + .switch-track::before{ transform:translateX(19px); }
+
+  .checkbox-row{
+    display:flex; align-items:flex-start; gap:10px;
+    padding:10px 2px; cursor:pointer;
+  }
+  .checkbox-box{
+    width:21px;height:21px;border-radius:7px; flex-shrink:0; margin-top:1px;
+    border:1.5px solid rgba(255,255,255,0.22);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12.5px; font-weight:800; color:var(--accent-ink);
+    transition:background .12s ease, border-color .12s ease;
+  }
+  .checkbox-row.checked .checkbox-box{ background:var(--accent); border-color:var(--accent); }
+  .checkbox-text{ font-size:13.5px; line-height:1.35; }
+  .motivo-placeholder{
+    font-size:12.5px; color:var(--text-muted); text-align:center; padding:10px 0;
+  }
+
+  .primary-btn{
+    width:100%; border:none; border-radius:15px;
+    padding:16px; font-size:15px; font-weight:800;
+    background:linear-gradient(165deg,var(--accent-2),var(--accent));
+    color:var(--accent-ink);
+    -webkit-appearance:none; font-family:inherit;
+    box-shadow:0 12px 26px rgba(58,163,255,0.24);
+  }
+  .primary-btn:active{ transform:scale(0.98); }
+  .secondary-btn{
+    width:100%; border:1px solid rgba(255,255,255,0.1); border-radius:15px;
+    padding:14px; font-size:13.5px; font-weight:600;
+    background:rgba(255,255,255,0.05); color:var(--text-label);
+    -webkit-appearance:none; margin-top:10px; font-family:inherit;
+  }
+  .secondary-btn:active{ background:rgba(255,255,255,0.1); }
+
+  .dyn-row{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 2px; border-top:1px solid rgba(255,255,255,0.06);
+  }
+  .dyn-row-info{ flex:1; min-width:0; }
+  .dyn-row-title{ font-size:12.5px; font-weight:700; margin-bottom:6px; }
+  .dyn-row-info input{
+    width:100%; background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    color:var(--text-primary); border-radius:10px;
+    padding:9px 11px; font-size:13px; font-family:inherit;
+    -webkit-appearance:none;
+  }
+
+  .class-badge{
+    margin-top:6px; padding:13px 14px; border-radius:14px;
+    font-size:12.5px; font-weight:700; text-align:center;
+  }
+  .class-badge.ok{
+    background:rgba(52,211,153,0.12); color:var(--ok);
+    border:1px solid rgba(52,211,153,0.3);
+  }
+  .class-badge.pending{
+    background:var(--pending-soft); color:var(--pending);
+    border:1px solid rgba(242,177,52,0.35);
+  }
+
+  .info-box{
+    font-size:12.5px; color:var(--text-muted); line-height:1.6;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+    border-radius:12px; padding:12px 14px; margin-bottom:12px;
+  }
+
+  .report-box{
+    background:#050505; border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:14px; font-size:12.5px;
+    white-space:pre-wrap; word-break:break-word;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#d8d8d8; line-height:1.5; margin-bottom:14px;
+  }
+
+  .history-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 4px; border-bottom:1px solid rgba(255,255,255,0.06);
+    gap:10px;
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .history-info{ min-width:0; }
+  .history-cliente{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .history-meta{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .history-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .icon-btn-sm{
+    background:rgba(255,255,255,0.06); border:none; color:var(--text-label);
+    width:30px;height:30px;border-radius:10px; font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+    -webkit-appearance:none; flex-shrink:0;
+  }
+  .icon-btn-sm:active{ background:rgba(255,255,255,0.14); }
+  .empty-hist{ font-size:12.5px; color:var(--text-muted); text-align:center; padding:14px 0; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:#1c1c1c; border:1px solid rgba(255,255,255,0.1);
+    color:var(--text-primary); font-size:13px; padding:11px 18px;
+    border-radius:14px; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+    max-width:85vw; text-align:center; z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+
+  .loading{ text-align:center; color:var(--text-muted); font-size:13px; padding:60px 0; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="top-row">
+    <a href="../../index.html" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Início
+    </a>
+    <a href="../../historico.html" class="history-link">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v4.5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Histórico
+    </a>
+  </div>
+  <div class="sync-row hidden" id="syncRow">
+    <span class="sync-dot" id="syncDot"></span>
+    <span id="syncText"></span>
+  </div>
+  <div id="app"><div class="loading">carregando…</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TECNICO_KEY = "aide-os-tecnico";
+const HISTORY_KEY = "aide-os-history";
+const MODULO = "infraestrutura";
+
+// ---------- catálogo de tipos ----------
+const TIPOS = ["PREVENTIVA", "CORRETIVA", "EXPANSÃO CAIXA", "CAIXA NOVA"];
+
+const MOTIVOS_POR_TIPO = {
+  "CORRETIVA": ["CAIXA LINK LOS", "PORTA DO CLIENTE LOS", "CAIXA ARRANCADA", "SPLITTER QUEBRADO", "FIBRA PRINCIPAL ROMPIDA"],
+  "PREVENTIVA": ["CAIXA SOLTA", "CAIXA COM POTÊNCIA BAIXA", "SPLITTER RESSECADO", "SPLITTER DO CLINTE COM POTÊNCIA BAIXA", "BANDEIJA QUEBRADA"],
+  "EXPANSÃO CAIXA": ["CAIXA MAIS PRÓXIMA CHEIA, MAS COM POTÊNCIA PARA EXPANSÃO"],
+  "CAIXA NOVA": ["CAIXA MAIS PRÓXIMA DISTANTE", "CAIXA MAIS PRÓXIMA CHEIA E SEM POTÊNCIA PARA EXPANSÃO"]
+};
+
+function emptyForm(){
+  return {
+    tipo: "",
+    tecnico: "",
+    data: todayISO(),
+    cliente: "",
+    condominio: false,
+    contato: "",
+    endereco: "",
+    caixa: "",
+    porta: "",
+    potencia: "",
+    coordenadas: "",
+    motivos: []
+  };
+}
+
+function todayISO(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function formatDateBR(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+function nowTimeHHMM(){
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function formatPotencia(val){
+  if(val === null || val === undefined) return "";
+  let cleaned = String(val).replace(/-/g, "");
+  cleaned = cleaned.replace(/[^0-9.,]/g, "");
+  if(!cleaned) return "";
+  return "-" + cleaned;
+}
+
+let state = {
+  form: emptyForm(),
+  history: [],
+  view: "form"
+};
+let lastGeneratedText = "";
+
+// ---------- storage (compartilhado com o restante do AIDE OS) ----------
+function storageAvailable(){
+  try{
+    window.localStorage.setItem("__t__","1");
+    window.localStorage.removeItem("__t__");
+    return true;
+  }catch(e){ return false; }
+}
+async function withRetry(fn, attempts=3, baseDelay=250){
+  let lastErr;
+  for(let i=0;i<attempts;i++){
+    try{ return fn(); }
+    catch(e){ lastErr=e; if(i<attempts-1) await new Promise(r=>setTimeout(r, baseDelay*Math.pow(2,i))); }
+  }
+  throw lastErr;
+}
+function getTecnicoGlobal(){
+  try{ return (window.localStorage.getItem(TECNICO_KEY) || "").trim(); }
+  catch(e){ return ""; }
+}
+function setTecnicoGlobal(nome){
+  try{ window.localStorage.setItem(TECNICO_KEY, nome); }
+  catch(e){}
+}
+function loadAllHistory(){
+  try{
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  }catch(e){ return []; }
+}
+function saveAllHistory(all){
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+}
+async function loadData(){
+  try{
+    const all = await withRetry(() => loadAllHistory());
+    state.history = all.filter(h => h.modulo === MODULO);
+    state.form = emptyForm();
+    state.form.tecnico = getTecnicoGlobal();
+  }catch(e){
+    state.form = emptyForm();
+  }
+}
+async function persist(){
+  updateSyncUI("busy");
+  try{
+    await withRetry(() => {
+      const all = loadAllHistory();
+      const outros = all.filter(h => h.modulo !== MODULO);
+      const meus = state.history.map(h => ({ ...h, modulo: MODULO }));
+      saveAllHistory(outros.concat(meus));
+    });
+    updateSyncUI("ok");
+  }catch(e){
+    updateSyncUI("err");
+  }
+}
+function updateSyncUI(s){
+  const row = document.getElementById("syncRow");
+  const dot = document.getElementById("syncDot");
+  const text = document.getElementById("syncText");
+  dot.className = "sync-dot";
+  if(s === "busy"){ row.classList.remove("hidden"); dot.classList.add("ok"); text.textContent = "salvando…"; }
+  else if(s === "ok"){ dot.classList.add("ok"); text.textContent = "salvo"; setTimeout(()=>row.classList.add("hidden"),1000); }
+  else if(s === "err"){ row.classList.remove("hidden"); dot.classList.add("err"); text.textContent = "falha ao salvar"; }
+}
+
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2300);
+}
+
+// ---------- texto do relatório ----------
+function buildReportText(form){
+  const lines = [];
+  lines.push("SOLICITAÇÃO PARA INFRAESTRUTURA");
+  lines.push(`TIPO: ${form.tipo}`);
+  lines.push("");
+  lines.push(`TÉCNICO: ${form.tecnico}`);
+  lines.push(`DATA: ${formatDateBR(form.data)} ${nowTimeHHMM()}`);
+  lines.push("");
+  lines.push(`CLIENTE: ${form.cliente}`);
+  lines.push(`CONTATO: ${form.contato}`);
+  lines.push(`ENDEREÇO: ${form.endereco}`);
+  if(form.coordenadas){
+    lines.push(`COORDENADAS: ${form.coordenadas}`);
+  }
+  if(form.tipo !== "CAIXA NOVA"){
+    lines.push("");
+    lines.push(`CAIXA: ${form.caixa}`);
+    lines.push(`PORTA: ${form.porta}`);
+    lines.push(`POTÊNCIA: ${form.potencia}`);
+  }
+  lines.push("");
+  lines.push("MOTIVO:");
+  if(form.motivos.length){
+    form.motivos.forEach(m => lines.push(m));
+  } else {
+    lines.push("-");
+  }
+  return lines.join("\n");
+}
+
+// ---------- validação ----------
+// Observação (Etapa 4): este módulo não tem o conceito de "Classificação
+// Andamento x Encerramento" (badge) que existe no módulo de Encerramento.
+// Aqui a validação apenas libera/bloqueia o botão "Gerar relatório" e marca
+// os campos obrigatórios em vermelho. A lógica abaixo é a mesma do
+// relatorio-infra original — nenhuma regra foi alterada na migração.
+function validate(form){
+  const missing = [];
+  if(!form.tipo) missing.push("tipo");
+  if(!form.tecnico.trim()) missing.push("tecnico");
+  if(!form.cliente.trim()) missing.push("cliente");
+  if(!form.endereco.trim()) missing.push("endereco");
+  if(form.tipo !== "CAIXA NOVA" && !form.caixa.trim()) missing.push("caixa");
+  if(form.condominio && !form.contato.trim()) missing.push("contato");
+  return missing;
+}
+function missingClass(f, field){
+  const missing = validate(f);
+  return missing.includes(field) ? "invalid" : "";
+}
+function hasAnyData(f){
+  return !!(f.tipo || f.tecnico || f.cliente || f.contato || f.endereco || f.coordenadas || f.caixa || f.porta || f.potencia || f.motivos.length);
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+// ---------- rendering ----------
+function render(){
+  const app = document.getElementById("app");
+  if(state.view === "result"){
+    renderResult(app);
+  } else {
+    renderForm(app);
+  }
+}
+
+function renderForm(app){
+  const f = state.form;
+  let html = "";
+
+  html += `<span class="module-tag">Infraestrutura</span>
+  <h1 class="page-title">Solicitação Infraestrutura</h1>
+  <p class="page-sub">Preencha os campos e gere o relatório pronto para o WhatsApp</p>`;
+
+  // TIPO
+  html += `<div class="card">
+    <p class="section-title">Tipo</p>
+    <div class="chip-grid">
+      ${TIPOS.map(t => `<button type="button" class="chip ${f.tipo===t?"active":""}" data-role="tipo" data-value="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join("")}
+    </div>
+  </div>`;
+
+  // DADOS GERAIS
+  html += `<div class="card">
+    <p class="section-title">Dados gerais</p>
+    <div class="field">
+      <label>Técnico ${missingClass(f,"tecnico")?'<span class="req">*</span>':''}</label>
+      <input type="text" data-role="tecnico" value="${escapeAttr(f.tecnico)}" class="${missingClass(f,"tecnico")}" placeholder="Seu nome">
+      <button type="button" class="secondary-btn" id="trocarTecnicoBtn" style="margin-top:8px;">✏️ Alterar técnico</button>
+    </div>
+    <div class="field">
+      <label>Data</label>
+      <input type="date" data-role="data" value="${escapeAttr(f.data)}">
+    </div>
+    <div class="field">
+      <label>Cliente ${missingClass(f,"cliente")?'<span class="req">*</span>':''}</label>
+      <input type="text" data-role="cliente" value="${escapeAttr(f.cliente)}" class="${missingClass(f,"cliente")}" placeholder="Nome do cliente">
+    </div>
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Atendimento em condomínio</div>
+        <div class="toggle-sub">contato do síndico/zelador vira obrigatório</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" data-role="condominio" ${f.condominio ? "checked" : ""}>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <div class="field">
+      <label>Contato ${missingClass(f,"contato")?'<span class="req">*</span>':''}</label>
+      <input type="tel" inputmode="tel" data-role="contato" value="${escapeAttr(f.contato)}" class="${missingClass(f,"contato")}" placeholder="(00) 00000-0000">
+    </div>
+    <div class="field">
+      <label>Endereço ${missingClass(f,"endereco")?'<span class="req">*</span>':''}</label>
+      <input type="text" data-role="endereco" value="${escapeAttr(f.endereco)}" class="${missingClass(f,"endereco")}" placeholder="Endereço do atendimento">
+    </div>
+    <div class="field">
+      <label>Coordenadas</label>
+      <input type="text" data-role="coordenadas" value="${escapeAttr(f.coordenadas)}" placeholder="-3.876961, -38.481761" inputmode="decimal">
+      <button type="button" class="secondary-btn" id="capturarCoordBtn" style="margin-top:8px;">📍 Capturar coordenadas</button>
+    </div>
+  </div>`;
+
+  // DADOS TÉCNICOS (oculto quando o tipo é CAIXA NOVA)
+  if(f.tipo !== "CAIXA NOVA"){
+    html += `<div class="card">
+    <p class="section-title">Dados técnicos</p>
+    <div class="field">
+      <label>Caixa ${missingClass(f,"caixa")?'<span class="req">*</span>':''}</label>
+      <input type="text" data-role="caixa" value="${escapeAttr(f.caixa)}" class="${missingClass(f,"caixa")}" placeholder="Identificação da caixa">
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label>Porta</label>
+        <input type="text" data-role="porta" value="${escapeAttr(f.porta)}" placeholder="Nº da porta" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Potência<span class="field-unit">dBm</span></label>
+        <input type="text" data-role="potencia" value="${escapeAttr(f.potencia)}" placeholder="-20" inputmode="decimal">
+      </div>
+    </div>
+  </div>`;
+  }
+
+  // MOTIVO
+  html += `<div class="card">
+    <p class="section-title">Motivo</p>
+    ${f.tipo
+      ? MOTIVOS_POR_TIPO[f.tipo].map(m => `
+        <div class="checkbox-row ${f.motivos.includes(m) ? "checked" : ""}" data-role="motivo" data-value="${escapeAttr(m)}">
+          <div class="checkbox-box">${f.motivos.includes(m) ? "✓" : ""}</div>
+          <div class="checkbox-text">${escapeHtml(m)}</div>
+        </div>`).join("")
+      : `<div class="motivo-placeholder">Selecione o tipo acima para ver os motivos</div>`
+    }
+  </div>`;
+
+  html += `<button class="primary-btn" id="generateBtn">Gerar relatório</button>`;
+  if(hasAnyData(f)){
+    html += `<button class="secondary-btn" id="clearBtn">Limpar formulário</button>`;
+  }
+
+  html += renderHistorySection();
+
+  app.innerHTML = html;
+  attachFormHandlers();
+}
+
+function renderHistorySection(){
+  let html = `<p class="section-title" style="margin:24px 4px 12px;color:var(--text-label);font-size:12.5px;">Relatórios recentes</p>
+  <div class="card history-card">
+    ${state.history.length === 0
+      ? `<div class="empty-hist">Nenhum relatório gerado ainda</div>`
+      : state.history.slice(0,10).map(h => `
+        <div class="history-item">
+          <div class="history-info">
+            <div class="history-cliente">${escapeHtml(h.form.cliente || "Sem cliente")}</div>
+            <div class="history-meta">${escapeHtml(h.titulo || h.form.tipo || "—")} · ${formatDateBR(h.form.data)}</div>
+          </div>
+          <div class="history-actions">
+            <button class="icon-btn-sm" data-role="reuseHist" data-id="${h.id}" title="usar como base">↻</button>
+            <button class="icon-btn-sm" data-role="copyHist" data-id="${h.id}" title="copiar">⧉</button>
+            <button class="icon-btn-sm" data-role="delHist" data-id="${h.id}" title="excluir">✕</button>
+          </div>
+        </div>`).join("")
+    }
+  </div>`;
+  return html;
+}
+
+function renderResult(app){
+  let html = "";
+  html += `<span class="module-tag">Infraestrutura</span>
+  <h1 class="page-title">Relatório gerado</h1>
+  <p class="page-sub">Copie e cole no WhatsApp</p>
+  <div class="card result-card">
+    <div class="report-box">${escapeHtml(lastGeneratedText)}</div>
+    <button class="primary-btn" id="copyBtn">Copiar para o WhatsApp</button>
+    <button class="secondary-btn" id="backToFormBtn">Voltar e editar</button>
+    <button class="secondary-btn" id="newReportBtn">Novo relatório</button>
+  </div>`;
+  app.innerHTML = html;
+
+  document.getElementById("copyBtn").addEventListener("click", copyReport);
+  document.getElementById("backToFormBtn").addEventListener("click", () => {
+    state.view = "form";
+    render();
+  });
+  document.getElementById("newReportBtn").addEventListener("click", async () => {
+    state.form = emptyForm();
+    state.form.tecnico = getTecnicoGlobal();
+    state.view = "form";
+    render();
+  });
+}
+
+// ---------- handlers ----------
+function attachFormHandlers(){
+  document.querySelectorAll('[data-role="tipo"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const value = btn.dataset.value;
+      if(state.form.tipo !== value){
+        state.form.tipo = value;
+        state.form.motivos = [];
+      }
+      render();
+    });
+  });
+
+  bindInput("tecnico");
+  bindInput("data");
+  bindInput("cliente");
+  bindInput("contato");
+  bindInput("endereco");
+  bindInput("caixa");
+  bindInput("porta");
+  bindInput("potencia");
+  bindInput("coordenadas");
+
+  const coordBtn = document.getElementById("capturarCoordBtn");
+  if(coordBtn) coordBtn.addEventListener("click", captureCoordinates);
+
+  const tecnicoEl = document.querySelector('[data-role="tecnico"]');
+  if(tecnicoEl){
+    tecnicoEl.addEventListener("blur", () => {
+      const val = tecnicoEl.value.trim();
+      if(val && val !== getTecnicoGlobal()){
+        setTecnicoGlobal(val);
+      }
+    });
+  }
+  const trocarBtn = document.getElementById("trocarTecnicoBtn");
+  if(trocarBtn){
+    trocarBtn.addEventListener("click", () => {
+      const el = document.querySelector('[data-role="tecnico"]');
+      if(el){ el.focus(); el.select(); }
+      showToast("Digite o novo nome do técnico");
+    });
+  }
+
+  const condToggle = document.querySelector('[data-role="condominio"]');
+  if(condToggle) condToggle.addEventListener("change", () => {
+    state.form.condominio = condToggle.checked;
+    render();
+  });
+
+  document.querySelectorAll('[data-role="motivo"]').forEach(row => {
+    row.addEventListener("click", () => {
+      const value = row.dataset.value;
+      const idx = state.form.motivos.indexOf(value);
+      if(idx === -1) state.form.motivos.push(value);
+      else state.form.motivos.splice(idx, 1);
+      render();
+    });
+  });
+
+  const genBtn = document.getElementById("generateBtn");
+  if(genBtn) genBtn.addEventListener("click", generateReport);
+
+  const clearBtn = document.getElementById("clearBtn");
+  if(clearBtn) clearBtn.addEventListener("click", () => {
+    if(!confirm("Limpar todos os campos preenchidos?")) return;
+    state.form = emptyForm();
+    state.form.tecnico = getTecnicoGlobal();
+    render();
+  });
+
+  document.querySelectorAll('[data-role="reuseHist"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const h = state.history.find(x => x.id === btn.dataset.id);
+      if(!h) return;
+      state.form = { ...emptyForm(), ...h.form, data: todayISO() };
+      window.scrollTo({top:0, behavior:"smooth"});
+      render();
+      showToast("Dados reaproveitados — ajuste o que precisar");
+    });
+  });
+  document.querySelectorAll('[data-role="copyHist"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const h = state.history.find(x => x.id === btn.dataset.id);
+      if(!h) return;
+      await copyTextToClipboard(h.text);
+      showToast("Relatório copiado");
+    });
+  });
+  document.querySelectorAll('[data-role="delHist"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      state.history = state.history.filter(x => x.id !== btn.dataset.id);
+      render();
+      await persist();
+    });
+  });
+}
+
+function captureCoordinates(){
+  const btn = document.getElementById("capturarCoordBtn");
+  if(!("geolocation" in navigator)){
+    showToast("Geolocalização não suportada neste dispositivo");
+    return;
+  }
+  const originalText = btn.textContent;
+  btn.textContent = "Capturando…";
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      state.form.coordenadas = `${lat}, ${lng}`;
+      render();
+      showToast("Coordenadas capturadas");
+    },
+    (err) => {
+      btn.textContent = originalText;
+      btn.disabled = false;
+      let msg = "Não foi possível capturar as coordenadas";
+      if(err && err.code === 1) msg = "Permissão de localização negada";
+      showToast(msg);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function bindInput(role){
+  const el = document.querySelector(`[data-role="${role}"]`);
+  if(!el) return;
+  el.addEventListener("input", () => {
+    if(role === "potencia"){
+      const formatted = formatPotencia(el.value);
+      el.value = formatted;
+      state.form[role] = formatted;
+    } else {
+      state.form[role] = el.value;
+    }
+  });
+  el.addEventListener("blur", () => {
+    render();
+  });
+}
+
+async function generateReport(){
+  const missing = validate(state.form);
+  if(missing.length > 0){
+    render();
+    showToast("Preencha os campos obrigatórios em vermelho");
+    return;
+  }
+  lastGeneratedText = buildReportText(state.form);
+  if(state.form.tecnico.trim()) setTecnicoGlobal(state.form.tecnico.trim());
+  const entry = {
+    id: "r" + Date.now(),
+    savedAt: new Date().toISOString(),
+    titulo: state.form.tipo,
+    form: { ...state.form },
+    text: lastGeneratedText
+  };
+  state.history.unshift(entry);
+  if(state.history.length > 50) state.history = state.history.slice(0,50);
+  state.view = "result";
+  render();
+  await persist();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+async function copyTextToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    }catch(e2){
+      return false;
+    }
+  }
+}
+
+async function copyReport(){
+  const ok = await copyTextToClipboard(lastGeneratedText);
+  showToast(ok ? "Relatório copiado — cole no WhatsApp" : "Não foi possível copiar automaticamente");
+}
+
+// ---------- init ----------
+(async function init(){
+  if(!storageAvailable()){
+    state.form = emptyForm();
+    render();
+    showToast("Armazenamento indisponível (modo privado?). O histórico não será salvo.");
+  } else {
+    await loadData();
+    render();
+  }
+})();
+
+</script>
+</body>
+</html>

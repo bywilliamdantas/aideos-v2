@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIDE OS">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="description" content="Histórico unificado de atendimentos de Encerramento e Infraestrutura.">
+<title>AIDE OS — Histórico</title>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --bg:#0a0b0d;
+    --card-top:#1b1e23;
+    --card-bottom:#101216;
+    --card-border:rgba(255,255,255,0.07);
+    --text-primary:#f3f4f6;
+    --text-muted:#7d838a;
+    --text-label:#a2a7ad;
+    --danger:#ff5c52;
+    --ok:#34d399;
+    --accent:#f3f4f6;
+    /* cores de identidade dos módulos, usadas nos badges e no filtro */
+    --mod-encerramento:#ff8a3d;
+    --mod-encerramento-soft:rgba(255,138,61,0.16);
+    --mod-infra:#3aa3ff;
+    --mod-infra-soft:rgba(58,163,255,0.16);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;
+    background:var(--bg);
+    min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;
+    color:var(--text-primary);
+    display:flex;justify-content:center;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+  }
+  .screen{ width:100%; max-width:430px; padding:20px 18px 50px; }
+
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--text-muted); text-decoration:none;
+    font-size:12.5px; font-weight:700;
+    margin:0 4px 14px; -webkit-tap-highlight-color:transparent;
+  }
+  .back-link svg{ width:14px; height:14px; }
+  .back-link:active{ color:var(--text-primary); }
+
+  .page-title{ font-size:23px; font-weight:800; margin:2px 4px 4px; letter-spacing:-0.01em; }
+  .page-sub{ font-size:12.5px; color:var(--text-muted); margin:0 4px 20px; }
+
+  .filter-row{ display:flex; gap:8px; margin:0 0 16px; }
+  .filter-chip{
+    flex:1; background:rgba(255,255,255,0.04);
+    border:1.5px solid rgba(255,255,255,0.09);
+    color:var(--text-label);
+    font-size:12.5px; font-weight:700;
+    padding:11px 8px; border-radius:12px;
+    text-align:center; -webkit-appearance:none;
+    font-family:inherit; transition:border-color .12s ease, background .12s ease;
+  }
+  .filter-chip.active{
+    background:var(--chip-soft, rgba(255,255,255,0.1));
+    border-color:var(--chip-accent, var(--text-primary));
+    color:var(--chip-accent, var(--text-primary));
+  }
+  .filter-chip:active{ transform:scale(0.97); }
+
+  .card{
+    background:linear-gradient(165deg,var(--card-top),var(--card-bottom) 70%);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    padding:20px 20px 22px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+    margin-bottom:16px;
+  }
+  .section-title{
+    font-size:12.5px; font-weight:700;
+    color:var(--text-label);
+    margin:0 0 14px;
+  }
+
+  .history-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 4px; border-bottom:1px solid rgba(255,255,255,0.06);
+    gap:10px;
+  }
+  .history-item:last-child{ border-bottom:none; }
+  .history-info{ min-width:0; display:flex; align-items:flex-start; gap:10px; flex:1; }
+  .history-text{ min-width:0; flex:1; }
+  .history-dot{ width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .history-dot.encerramento{ background:var(--mod-encerramento); }
+  .history-dot.infraestrutura{ background:var(--mod-infra); }
+  .history-cliente{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .history-meta{ font-size:11px; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .modulo-badge{
+    display:inline-block; font-size:10px; font-weight:800;
+    padding:2px 7px; border-radius:8px;
+  }
+  .modulo-badge.encerramento{ background:var(--mod-encerramento-soft); color:var(--mod-encerramento); }
+  .modulo-badge.infraestrutura{ background:var(--mod-infra-soft); color:var(--mod-infra); }
+  .history-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .icon-btn-sm{
+    background:rgba(255,255,255,0.06); border:none; color:var(--text-label);
+    width:30px;height:30px;border-radius:10px; font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+    -webkit-appearance:none; flex-shrink:0;
+  }
+  .icon-btn-sm:active{ background:rgba(255,255,255,0.14); }
+  .empty-hist{ font-size:12.5px; color:var(--text-muted); text-align:center; padding:24px 0; }
+
+  .report-box{
+    background:#050505; border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px; padding:14px; font-size:12.5px;
+    white-space:pre-wrap; word-break:break-word;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#d8d8d8; line-height:1.5; margin:10px 0 0;
+  }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:#1c1c1c; border:1px solid rgba(255,255,255,0.1);
+    color:var(--text-primary); font-size:13px; padding:11px 18px;
+    border-radius:14px; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+    max-width:85vw; text-align:center; z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <a href="index.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Início
+  </a>
+
+  <h1 class="page-title">Histórico</h1>
+  <p class="page-sub">Todos os atendimentos salvos nos dois módulos</p>
+
+  <div class="filter-row">
+    <button type="button" class="filter-chip active" data-filtro="todos">Todos</button>
+    <button type="button" class="filter-chip" data-filtro="encerramento" style="--chip-accent:var(--mod-encerramento);--chip-soft:var(--mod-encerramento-soft);">Encerramento</button>
+    <button type="button" class="filter-chip" data-filtro="infraestrutura" style="--chip-accent:var(--mod-infra);--chip-soft:var(--mod-infra-soft);">Infraestrutura</button>
+  </div>
+
+  <div id="app"><div class="card"><div class="empty-hist">carregando…</div></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HISTORY_KEY = "aide-os-history";
+const MODULO_LABEL = { encerramento: "Encerramento", infraestrutura: "Infraestrutura" };
+const MODULO_LINK = { encerramento: "modulos/encerramento/index.html", infraestrutura: "modulos/infraestrutura/index.html" };
+
+let state = { filtro: "todos", history: [], expandedId: null };
+
+function loadAllHistory(){
+  try{
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  }catch(e){ return []; }
+}
+function saveAllHistory(all){
+  try{ window.localStorage.setItem(HISTORY_KEY, JSON.stringify(all)); }
+  catch(e){}
+}
+
+function escapeHtml(str){
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function formatDateBR(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  if(!y || !m || !d) return "";
+  return `${d}/${m}/${y}`;
+}
+
+function filteredHistory(){
+  const all = [...state.history].sort((a,b) => new Date(b.savedAt) - new Date(a.savedAt));
+  if(state.filtro === "todos") return all;
+  return all.filter(h => h.modulo === state.filtro);
+}
+
+function render(){
+  const app = document.getElementById("app");
+  document.querySelectorAll(".filter-chip").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.filtro === state.filtro);
+  });
+
+  const list = filteredHistory();
+
+  if(list.length === 0){
+    app.innerHTML = `<div class="card"><div class="empty-hist">Nenhum atendimento encontrado</div></div>`;
+    return;
+  }
+
+  app.innerHTML = `<div class="card">
+    ${list.map(h => {
+      const modulo = h.modulo === "infraestrutura" ? "infraestrutura" : "encerramento";
+      const cliente = (h.form && h.form.cliente) ? h.form.cliente : "Sem cliente";
+      const data = h.form ? formatDateBR(h.form.data) : "";
+      const isOpen = state.expandedId === h.id;
+      return `
+      <div class="history-item-wrap">
+        <div class="history-item">
+          <div class="history-info">
+            <span class="history-dot ${modulo}"></span>
+            <div class="history-text">
+              <div class="history-cliente">${escapeHtml(cliente)}</div>
+              <div class="history-meta">
+                <span class="modulo-badge ${modulo}">${MODULO_LABEL[modulo]}</span>
+                <span>${escapeHtml(h.titulo || "—")} ${data ? "· " + data : ""}</span>
+              </div>
+            </div>
+          </div>
+          <div class="history-actions">
+            <button class="icon-btn-sm" data-role="toggleHist" data-id="${h.id}" title="ver relatório">${isOpen ? "▲" : "▾"}</button>
+            <button class="icon-btn-sm" data-role="copyHist" data-id="${h.id}" title="copiar">⧉</button>
+            <button class="icon-btn-sm" data-role="abrirModulo" data-modulo="${modulo}" title="abrir módulo">↗</button>
+            <button class="icon-btn-sm" data-role="delHist" data-id="${h.id}" title="excluir">✕</button>
+          </div>
+        </div>
+        ${isOpen ? `<div class="report-box">${escapeHtml(h.text || "")}</div>` : ""}
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  attachHandlers();
+}
+
+function attachHandlers(){
+  document.querySelectorAll(".filter-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.filtro = btn.dataset.filtro;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-role="toggleHist"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      state.expandedId = state.expandedId === id ? null : id;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-role="copyHist"]').forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const h = state.history.find(x => x.id === btn.dataset.id);
+      if(!h) return;
+      await copyTextToClipboard(h.text || "");
+      showToast("Relatório copiado");
+    });
+  });
+  document.querySelectorAll('[data-role="abrirModulo"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      window.location.href = MODULO_LINK[btn.dataset.modulo];
+    });
+  });
+  document.querySelectorAll('[data-role="delHist"]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(!confirm("Excluir este atendimento do histórico?")) return;
+      const all = loadAllHistory().filter(x => x.id !== btn.dataset.id);
+      saveAllHistory(all);
+      state.history = all;
+      render();
+      showToast("Atendimento excluído");
+    });
+  });
+}
+
+async function copyTextToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    }catch(e2){
+      return false;
+    }
+  }
+}
+
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2300);
+}
+
+(function init(){
+  state.history = loadAllHistory();
+  render();
+})();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
